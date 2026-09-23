@@ -4,6 +4,7 @@ video source, drawing annotations and logging every event to JSON."""
 import json
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -41,6 +42,8 @@ def run(
     confidence: float = 0.35,
     max_frames: int | None = None,
     tracker: str = DEFAULT_TRACKER,
+    live: bool = False,
+    heartbeat_every: int = 30,
 ) -> PipelineResult:
     """Run the full pipeline once over `source`. `line` enables crossing
     counts, `zone` enables entry alerts — either, both, or neither can be
@@ -49,7 +52,16 @@ def run(
     `tracker` defaults to this project's tuned ByteTrack config (see
     tracker_tuned.yaml) — pass "bytetrack.yaml" to reproduce the stock
     Ultralytics behavior, e.g. for the before/after comparison in
-    evals/results.md."""
+    evals/results.md.
+
+    `live=True` is for monitoring a real camera without recording: it
+    prints each event to stdout the moment it happens (plus a heartbeat
+    line every `heartbeat_every` frames so you know it's still alive) and
+    disables video writing regardless of `output_video` — appending to a
+    growing file forever isn't what you want for a stream with no natural
+    end. Stop with Ctrl+C; the function returns normally with whatever was
+    seen up to that point (the writer, if any, is always released, so a
+    partial output video is still playable)."""
     detector = Detector(weights=weights, confidence=confidence, tracker=tracker)
     line_counter = LineCounter(line) if line else None
     zone_alert = ZoneAlert(zone) if zone else None
@@ -58,50 +70,61 @@ def run(
     events: list[dict] = []
     frame_index = 0
     start = time.monotonic()
+    write_video = output_video is not None and not live
 
-    for frame, detections in detector.track_video(source):
-        if max_frames is not None and frame_index >= max_frames:
-            break
+    try:
+        for frame, detections in detector.track_video(source):
+            if max_frames is not None and frame_index >= max_frames:
+                break
 
-        for det in detections:
-            point = det.bottom_center
-            if line_counter is not None:
-                event = line_counter.update(det.track_id, point, det.class_name, frame_index)
-                if event is not None:
-                    events.append(
-                        {
+            for det in detections:
+                point = det.bottom_center
+                if line_counter is not None:
+                    event = line_counter.update(
+                        det.track_id, point, det.class_name, frame_index
+                    )
+                    if event is not None:
+                        record = {
                             "type": "line_crossing",
                             "frame": frame_index,
                             "track_id": event.track_id,
                             "class_name": event.class_name,
                             "direction": event.direction,
                         }
-                    )
-            if zone_alert is not None:
-                event = zone_alert.update(det.track_id, point, det.class_name, frame_index)
-                if event is not None:
-                    events.append(
-                        {
+                        events.append(record)
+                        if live:
+                            _print_event(record)
+                if zone_alert is not None:
+                    event = zone_alert.update(det.track_id, point, det.class_name, frame_index)
+                    if event is not None:
+                        record = {
                             "type": "zone_entry",
                             "frame": frame_index,
                             "track_id": event.track_id,
                             "class_name": event.class_name,
                         }
+                        events.append(record)
+                        if live:
+                            _print_event(record)
+
+            if live and heartbeat_every > 0 and frame_index % heartbeat_every == 0:
+                _print_heartbeat(frame_index, len(detections), line_counter, zone_alert)
+
+            if write_video:
+                annotated = _annotate(frame, detections, line, zone, line_counter)
+                if writer is None:
+                    height, width = annotated.shape[:2]
+                    writer = cv2.VideoWriter(
+                        output_video, cv2.VideoWriter_fourcc(*"mp4v"), 30, (width, height)
                     )
+                writer.write(annotated)
 
-        if output_video is not None:
-            annotated = _annotate(frame, detections, line, zone, line_counter)
-            if writer is None:
-                height, width = annotated.shape[:2]
-                writer = cv2.VideoWriter(
-                    output_video, cv2.VideoWriter_fourcc(*"mp4v"), 30, (width, height)
-                )
-            writer.write(annotated)
-
-        frame_index += 1
-
-    if writer is not None:
-        writer.release()
+            frame_index += 1
+    except KeyboardInterrupt:
+        print(f"\nInterrupted after {frame_index} frames.")
+    finally:
+        if writer is not None:
+            writer.release()
 
     elapsed = time.monotonic() - start
     line_counts = line_counter.counts_by_class() if line_counter else {}
@@ -118,6 +141,31 @@ def run(
         line_counts=line_counts,
         zone_events=zone_events,
         events=events,
+    )
+
+
+def _print_event(record: dict) -> None:
+    now = datetime.now().strftime("%H:%M:%S")
+    if record["type"] == "line_crossing":
+        print(
+            f"[{now}] LINE  {record['class_name']:<10} #{record['track_id']:<5} "
+            f"{record['direction']}"
+        )
+    else:
+        print(f"[{now}] ZONE  {record['class_name']:<10} #{record['track_id']:<5} entered")
+
+
+def _print_heartbeat(frame_index: int, current_count: int, line_counter, zone_alert) -> None:
+    now = datetime.now().strftime("%H:%M:%S")
+    totals = []
+    if line_counter is not None:
+        for class_name, counts in line_counter.counts_by_class().items():
+            totals.append(f"{class_name}={counts['total']}")
+    zone_total = len(zone_alert.events) if zone_alert is not None else 0
+    summary = " ".join(totals) if totals else "no crossings yet"
+    print(
+        f"[{now}] . frame {frame_index}  |  {current_count} objects in view  |  "
+        f"line totals: {summary}  |  zone entries: {zone_total}"
     )
 
 

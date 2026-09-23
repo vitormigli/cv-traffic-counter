@@ -5,11 +5,20 @@ logic (drawing, event dispatch, video I/O) can be read without needing to
 know anything about the model itself.
 """
 
+import os
 from collections.abc import Iterator
 from dataclasses import dataclass
 
 import numpy as np
 from ultralytics import YOLO
+
+# Without this, OpenCV's FFmpeg backend will block forever on a read() if an
+# RTSP camera stops sending data (network drop, camera reboot, ...) — Ctrl+C
+# doesn't help, since the blocking call is native code that never yields
+# back to Python to check for the signal. `stimeout` (microseconds) bounds
+# that: after 10s of silence, the read raises instead of hanging, so a
+# real camera dropout becomes a clean error, not a stuck terminal.
+RTSP_CAPTURE_OPTIONS = "rtsp_transport;tcp|stimeout;10000000"
 
 # COCO classes relevant to a street-camera scene. Anything else YOLO detects
 # (chairs, laptops, ...) is filtered out — not useful for this project and
@@ -60,6 +69,9 @@ class Detector:
         """Yields (frame, detections) pairs, one per frame, in source order.
         `source` is anything OpenCV's VideoCapture accepts: a file path, a
         webcam index (as a string), or an RTSP/HTTP URL."""
+        if isinstance(source, str) and source.lower().startswith("rtsp://"):
+            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = RTSP_CAPTURE_OPTIONS
+
         results = self.model.track(
             source=source,
             classes=self.class_ids,

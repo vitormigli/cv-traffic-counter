@@ -2,7 +2,14 @@
 
 `--source` accepts anything OpenCV's VideoCapture does: a file path, a
 webcam index ("0"), or an RTSP/HTTP URL (e.g. a home DVR/NVR stream) — never
-commit a real camera's URL or credentials anywhere in this repo."""
+commit a real camera's URL or credentials anywhere in this repo.
+
+For a live camera you don't want to record, use `--live` instead of `--out`:
+
+    cv-traffic-counter --source rtsp://... --line 0,360,1280,360 --live
+
+Prints each crossing/zone event as it happens plus a periodic heartbeat,
+writes nothing to disk, and stops cleanly on Ctrl+C."""
 
 import argparse
 import json
@@ -46,6 +53,18 @@ def main() -> None:
         help="tracker YAML — defaults to this project's tuned config; pass "
         "'bytetrack.yaml' for stock Ultralytics behavior",
     )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="monitor a live source without recording: prints each event as it "
+        "happens plus a periodic heartbeat, ignores --out. Stop with Ctrl+C.",
+    )
+    parser.add_argument(
+        "--heartbeat-every",
+        type=int,
+        default=30,
+        help="frames between --live status lines (default 30, ~1s at 30fps)",
+    )
     args = parser.parse_args()
 
     line = tuple(args.line) if args.line else None
@@ -62,11 +81,14 @@ def main() -> None:
         events_out=args.events_out,
         confidence=args.confidence,
         max_frames=args.max_frames,
+        live=args.live,
+        heartbeat_every=args.heartbeat_every,
     )
     if args.tracker is not None:
         run_kwargs["tracker"] = args.tracker
     result = run(**run_kwargs)
 
+    print()
     print(
         f"Frames: {result.frame_count}  |  {result.fps:.1f} fps  |  {result.elapsed_seconds:.1f}s"
     )
