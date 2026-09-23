@@ -111,7 +111,7 @@ def run(
                 _print_heartbeat(frame_index, len(detections), line_counter, zone_alert)
 
             if write_video:
-                annotated = _annotate(frame, detections, line, zone, line_counter)
+                annotated = annotate(frame, detections, line, zone, line_counter)
                 if writer is None:
                     height, width = annotated.shape[:2]
                     writer = cv2.VideoWriter(
@@ -169,7 +169,7 @@ def _print_heartbeat(frame_index: int, current_count: int, line_counter, zone_al
     )
 
 
-def _annotate(frame, detections, line, zone, line_counter):
+def annotate(frame, detections, line, zone, line_counter):
     annotated = frame.copy()
 
     if line is not None:

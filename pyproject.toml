@@ -9,6 +9,8 @@ dependencies = [
     "ultralytics>=8.3",
     "numpy>=1.26",
     "lap>=0.5.12",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
 ]
 
 [dependency-groups]
@@ -19,6 +21,7 @@ dev = [
 
 [project.scripts]
 cv-traffic-counter = "cv_traffic_counter.cli:main"
+cv-traffic-counter-web = "cv_traffic_counter.web:main"
 
 [tool.ruff]
 line-length = 100

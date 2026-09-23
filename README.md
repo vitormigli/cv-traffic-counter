@@ -37,6 +37,17 @@ webcam index, or an RTSP/HTTP URL (e.g. a home DVR/NVR stream) — see
 [`docs/decisions/0003-no-live-camera-in-repo.md`](docs/decisions/0003-no-live-camera-in-repo.md)
 for why no real camera feed is wired into this repo itself.
 
+For a live camera, two more modes beyond writing a file:
+
+```bash
+cv-traffic-counter --source rtsp://... --line 0,360,1280,360 --live
+# prints each event to stdout as it happens, records nothing, Ctrl+C to stop
+
+cv-traffic-counter-web --source rtsp://... --line 0,360,1280,360 --port 8000
+# MJPEG stream in a browser at http://localhost:8000 — a proper live view,
+# multiple tabs share one detection loop, errors surface on the page
+```
+
 ## Architecture
 
 ```mermaid
