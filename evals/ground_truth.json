@@ -1,0 +1,18 @@
+{
+  "video": "data/demo/street_corner.mp4",
+  "line": [[400, 480], [1000, 480]],
+  "zone": [[430, 380], [1050, 380], [1150, 560], [350, 560]],
+  "methodology": "Counted by watching the clip with the counting line burned in (ffmpeg drawbox), sampled as contact sheets at ~0.8s resolution, cross-referenced against the raw event log's frame numbers and track IDs to distinguish genuine crossings from tracker ID fragmentation (see results.md). Not frame-perfect — a person's foot crossing the line line between two sampled frames could be missed — hence the tolerances below rather than exact-match assertions.",
+  "expected": {
+    "line_crossings": {
+      "person": {"count": 3, "tolerance": 2},
+      "vehicle": {"count": 1, "tolerance": 1, "classes": ["car", "truck", "bus", "motorcycle"]}
+    },
+    "zone_entries": {"count": 5, "tolerance": 4}
+  },
+  "notes": [
+    "One taxi visibly crosses the line once (~t=11.2s); the stock ByteTrack config split this into 3 separate track IDs within 5 frames (frames 335-340), counted 3x instead of once.",
+    "This project's tuned tracker config (tracker_tuned.yaml, match_thresh 0.8->0.65) reduces that specific fragmentation from 3 events to 2 for the same crossing — improved, not eliminated. See results.md for the full before/after comparison.",
+    "Pedestrians near the street corner at the very start (t<1s) sit right at the line's height while standing — small posture shifts can register as crossings; this is a real ambiguity in ground truth, not just a model error."
+  ]
+}

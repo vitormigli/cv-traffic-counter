@@ -1,0 +1,37 @@
+{
+  "frame_count": 801,
+  "fps": 25.3,
+  "actual": {
+    "person_line_crossings": 4,
+    "vehicle_line_crossings": 2,
+    "zone_entries": 5
+  },
+  "expected": {
+    "line_crossings": {
+      "person": {
+        "count": 3,
+        "tolerance": 2
+      },
+      "vehicle": {
+        "count": 1,
+        "tolerance": 1,
+        "classes": [
+          "car",
+          "truck",
+          "bus",
+          "motorcycle"
+        ]
+      }
+    },
+    "zone_entries": {
+      "count": 5,
+      "tolerance": 4
+    }
+  },
+  "checks": {
+    "person_line_crossings": true,
+    "vehicle_line_crossings": true,
+    "zone_entries": true
+  },
+  "all_passed": true
+}

@@ -1,0 +1,7 @@
+services:
+  demo:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./evals:/app/evals
+    command: sh -c "uv run python scripts/download_demo_video.py && uv run cv-traffic-counter --source data/demo/street_corner.mp4 --line 400,480,1000,480 --zone 430,380,1050,380,1150,560,350,560 --out data/demo/street_corner_annotated.mp4 && uv run python evals/run_eval.py"

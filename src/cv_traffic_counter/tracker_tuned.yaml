@@ -1,0 +1,17 @@
+# ByteTrack config tuned for this project's fixed-camera street scenes.
+#
+# The stock config (match_thresh: 0.8) is tight enough that a fast-moving
+# vehicle or a pedestrian caught in motion blur can shift its bounding box
+# more than the IoU threshold allows between consecutive frames — the
+# tracker fails to associate it with its existing track and silently starts
+# a *new* track ID, even though track_buffer (30 frames) would have kept
+# the old one alive. See docs/decisions/0002-tracker-id-fragmentation.md
+# for the concrete example this was tuned against (one taxi crossing the
+# line counted 3 times under 3 different track IDs within 5 frames).
+tracker_type: bytetrack
+track_high_thresh: 0.25
+track_low_thresh: 0.1
+new_track_thresh: 0.25
+track_buffer: 30
+match_thresh: 0.65 # was 0.8 — more tolerant of frame-to-frame box movement
+fuse_score: True

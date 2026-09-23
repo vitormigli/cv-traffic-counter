@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+data/demo/
+yolov8n.pt
+.pytest_cache/
+.ruff_cache/
