@@ -38,6 +38,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Full-history scan via the CLI directly, not gitleaks-action's push-event
+      # diffing — that diffs before..after SHAs from the push event, which
+      # breaks on a repo's first push (the initial commit has no parent to
+      # diff against). A full `detect` over the whole repo sidesteps that.
+      - name: Install gitleaks
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | tar xz gitleaks
+          sudo mv gitleaks /usr/local/bin/
+      - name: Scan full repository history
+        run: gitleaks detect --source . -v
